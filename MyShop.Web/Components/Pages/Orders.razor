@@ -1,0 +1,49 @@
+﻿@page "/orders"
+
+@using Microsoft.AspNetCore.Authorization
+@using MyShop.Core
+@using MyShop.Domain.Models
+@using MyShop.Infrastructure.Repositories
+
+@attribute [Authorize]
+
+@inject IRepository<Order> OrderRepository
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Orders</PageTitle>
+
+<AuthorizeView>
+    <h1>Orders for @context.User.Identity?.Name!</h1>
+
+    @if (orders is not null && orders.Any())
+    {
+        foreach (var order in orders)
+        {
+            <div>
+                <h2>@order.OrderDate</h2>
+                <h3>@order.Status</h3>
+                <h3>Items:</h3>
+                <ul>
+                    @foreach (var item in order.LineItems)
+                    {
+                        <li>@item.Product.Name x @item.Quantity</li>
+                    }
+                </ul>
+
+            </div>
+        }
+    }
+
+    @code
+    {
+        private IEnumerable<Order>? orders = null;
+
+        protected override async Task OnInitializedAsync()
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var email = authenticationState.User.Claims.Single(c => c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress").Value;
+
+            orders = await OrderRepository.FindAsync(o => o.Customer!.Email == email);
+        }
+    }
+</AuthorizeView>

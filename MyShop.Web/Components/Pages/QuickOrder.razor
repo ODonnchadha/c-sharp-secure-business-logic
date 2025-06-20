@@ -1,0 +1,92 @@
+﻿@page "/quickOrder"
+@using MyShop.Core
+@using MyShop.Domain.Models
+@using MyShop.Infrastructure.Repositories
+@rendermode InteractiveServer
+
+@inject IRepository<Order> OrderRepository;
+@inject IRepository<Product> ProductRepository;
+@inject IRepository<Customer> CustomerRepository;
+
+<PageTitle>Quick Order</PageTitle>
+
+<h1>Create a new quick order</h1>
+
+<EditForm Model=@Model OnSubmit=@CreateOrder FormName="CreateOrder">
+    <div class="mb-3">
+        <label class="form-label">Customer Name</label>
+        <InputText @bind-Value=Model!.CustomerName class="form-control" Placeholder="Customer name" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Customer Email</label>
+        <InputText @bind-Value=Model!.CustomerEmail class="form-control" Placeholder="Customer email" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Product Id</label>
+        <InputText @bind-Value=Model!.ProductId class="form-control" Placeholder="Product Id" />
+    </div>
+    <button class="btn btn-primary">Create</button>
+</EditForm>
+
+@code {
+    [SupplyParameterFromForm] public OrderModel? Model { get; set; } = new();
+
+    private async Task CreateOrder()
+    {
+        try
+        {
+            if (Model is null || Model.CustomerEmail is null || Model.CustomerName is null || Model.ProductId is null) return;
+
+            var customer = await CustomerRepository.GetAsync(c => c.Email == Model.CustomerEmail);
+            if (customer is null)
+            {
+                customer = new()
+                {
+                    Name = Model.CustomerName,
+                    Email = Model.CustomerEmail,
+                    City = "N/A",
+                    Country = "N/A",
+                    ShippingAddress = "N/A",
+                    PostalCode = "N/A",
+                };
+
+                await CustomerRepository.AddAsync(customer);
+            }
+
+            var order = new Order
+            {
+                Customer = customer,
+                Status = OrderStatus.Open
+            };
+
+            var product = await ProductRepository.GetAsync(Guid.Parse(Model.ProductId));
+
+            if (product is null) return;
+
+            var lineItem = new LineItem
+            {
+                Product = product,
+                Quantity = 1,
+                Order = order
+            };
+
+            order.LineItems.Add(lineItem);
+            order.Status = OrderStatus.Shipped;
+
+            await OrderRepository.AddAsync(order);
+
+            await OrderRepository.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+
+        }
+    }
+
+    public class OrderModel
+    {
+        public string? CustomerName { get; set; }
+        public string? CustomerEmail { get; set; }
+        public string? ProductId { get; set; }
+    }
+}

@@ -1,0 +1,9 @@
+@MyShop.Api_HostAddress = http://localhost:5133
+
+GET {{MyShop.Api_HostAddress}}/order/
+Accept: application/json
+
+###
+
+POST {{MyShop.Api_HostAddress}}/order/reserve/d2dae150-9a29-4c78-b912-68ed66b056f0
+Accept: application/json
