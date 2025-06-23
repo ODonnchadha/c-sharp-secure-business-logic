@@ -4,6 +4,7 @@ using MyShop.Api.Models;
 using MyShop.Core;
 using MyShop.Domain.Models;
 using MyShop.Infrastructure.Services;
+using System.Text;
 
 namespace MyShop.Api.Controllers;
 

@@ -120,3 +120,97 @@
                     }
                 ```
                 - NOTE: Thread-safe approach to working with a shared variable.
+            - The concept of a lock. Only one thread executes at a time.
+                - This new Lock object was introduced in .NET 9.
+                - NOTE: Don't share Locks with others. Per each use case.
+                - NOTE: Perform as little work as possible inside a lock!
+                - NOTE: Locking is not supported in asynchronous code.
+                    ```cs
+                        private static Lock reserveStockLock = new();
+                        public bool TryReserveProductInStock(Guid id, Customer c)
+                        {
+                            var validCustomer = ValidateCustomer(customer);
+                            if (!validCustomer) return false;
+                            lock (reserveStockLock) 
+                            {
+                                if (Inventory.Stock =< 0) return false;
+                                Inventory.Stock = Inventory.Stock - 1;
+                            }
+                            var order = new Order(id, c);
+                        }
+                    ```
+            - The concept of semaphores with race conditions:
+                - Limits the number of threads that can access a resource or pool of resources concurrently.
+                    ```cs
+                        // One thread at a time.
+                        static SemaphoreSlim semaphore = new(1);
+                        try
+                        {
+                            // Only one thread at a time.
+                            await semaphore.WaitAsync();
+                        }
+                        finally
+                        {
+                            semaphore.Release();
+                        }
+                    ```
+                    ```cs
+                        private static SemaphoreSlim reserveStockSemaphore = new(1);
+                        public async Task<Result> Reserve(Guid id, Customer c)
+                        {
+                            var customerValidationTask = ValidateCustomerAsync(customer);
+                            var customerIsValid = await customerValidationTask;
+                            if (!customerIsValid) return new Failure<Customer>(c, Error.Value);
+
+                            await reserveStockSemaphore.WaitAsync();
+
+                            // Only one thread at a time. This may hurt scalability.
+                            try
+                            {
+                                var product = await productRepository.GetAsync(id);
+                                if (product is null) return new Failure<Product>(Error.Value);
+                                if (product.Stock <= 0) return new Failure<Product>(Error.Value);
+                                product.Stock = product.Stock - 1;
+                                var order = new Order(id, c);
+                                await orderRepository.UpdateAsync(order);
+                                await UpdateInventoryForAsync(product);
+                                await orderRepository.SaveChangesAsync();
+                                return new Success<Order>(order);
+                            }
+                            finally
+                            {
+                                reserveStockSemaphore.Release();
+                            }
+                        }
+                    ```
+            - e.g.: 
+                - System.Collections.Concurrent.ConcurrentDictionary<>();
+                - System.Collections.Concurrent.ConcurrentQueue<>();
+                - System.Collections.Concurrent.ConcurrentStack<>();
+        - Using a Queue:
+            - API or front-end: Enqueue
+            - Background processor: Dequeue
+                - Validate stock. Validate payment. Validate customer.
+                - Save order.
+                - Notify customer.
+        - Example of a thread-safe collection: Queue
+            ```cs
+                using System.Collections.Concurrent;
+                ConcurrentQueue<Order> queue = new();
+                queue.Enqueue(order);
+                // Inside the worker that process the queue:
+                queue.TryDequeue(out var nextOrderToProcess);
+            ```
+        - Combine a thread-safe queue with an external message queue/bus to mitigate race conditions:
+            - The concurrent collections are thread-safe and block others from adding or removing data at the same time.
+            - Order processing is the perfect example of how a concurrent queue can be introduced to wrote thread-safe code.
+    - Data Leaks & threads:
+        - Tasks in .NET need to be as effective as possible.
+            - Tasks reuse threads if possible. Not a guarenteee that it runs on a new thread.
+            - Cleaning all states or always creating a completely new thread is an expensive operation.
+            - NOTE: Beware static data.
+        ```cs
+            private static ThreadLocal<Customer> currentCustomer = new();
+            if (currentCustomer.Value is not null) throw new Exception();
+        ```
+        - DO not rely on thread-local data. We may not receive a new thread.

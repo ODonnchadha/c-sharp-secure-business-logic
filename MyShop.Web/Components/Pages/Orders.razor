@@ -40,7 +40,8 @@
 
         protected override async Task OnInitializedAsync()
         {
-            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var authenticationState = 
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
             var email = authenticationState.User.Claims.Single(c => c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress").Value;
 
             orders = await OrderRepository.FindAsync(o => o.Customer!.Email == email);

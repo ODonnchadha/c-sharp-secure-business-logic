@@ -39,13 +39,14 @@ builder.Services.AddTransient<IRepository<Product>, ProductRepository>();
 builder.Services.AddIdentityCore<ApplicationUser>
     (options => {
         options.SignIn.RequireConfirmedAccount = true;
-        
+        options.SignIn.RequireConfirmedEmail = true;
     })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, 
+    IdentityNoOpEmailSender>();
 
 var app = builder.Build();
 

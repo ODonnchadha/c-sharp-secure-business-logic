@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MyShop.Core;
 using MyShop.Domain.Models;
@@ -21,7 +22,21 @@ builder.Services.AddTransient<PaymentService>();
 builder.Services.AddTransient<OrderProcessor>();
 builder.Services.AddTransient<IShippingService, ShippingService>();
 
+builder.Services.AddRateLimiter(rateLimiter =>
+{
+    rateLimiter.AddFixedWindowLimiter("ProductLimiter",
+       options => {
+           options.PermitLimit = 10;
+           options.Window = TimeSpan.FromSeconds(5);
+           options.QueueLimit = 10;
+           options.QueueProcessingOrder 
+            = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+       });
+});
+
 var app = builder.Build();
+
+app.UseRateLimiter();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
